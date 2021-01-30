@@ -18,6 +18,9 @@
 	compatible = "pine64,pinetab", "allwinner,sun50i-a64";
 
 	aliases {
+		mmc0 = &mmc0;
+		mmc1 = &mmc1;
+		mmc2 = &mmc2;
 		serial0 = &uart0;
 		ethernet0 = &rtl8723cs;
 	};
@@ -33,6 +36,17 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+
+	hdmi-connector {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi_out_con>;
+			};
+		};
 	};
 
 	i2c-csi {
@@ -94,11 +108,13 @@
 };
 
 &codec {
+	allwinner,inverted-jack-detection;
 	status = "okay";
 };
 
 &codec_analog {
 	cpvdd-supply = <&reg_eldo1>;
+	allwinner,internal-bias-resistor;
 	status = "okay";
 };
 
@@ -192,7 +208,15 @@
 &i2c1 {
 	status = "okay";
 
-	/* TODO: add Bochs BMA223 accelerometer here */
+	bma223@18 {
+		compatible = "bosch,bma223", "bosch,bma222e";
+		reg = <0x18>;
+		interrupt-parent = <&pio>;
+		interrupts = <7 5 IRQ_TYPE_LEVEL_HIGH>; /* PH5 */
+		mount-matrix = "0", "-1", "0",
+			       "-1", "0", "0",
+			       "0", "0", "-1";
+	};
 };
 
 &lradc {
@@ -413,8 +437,24 @@
 	regulator-name = "vcc-rtc";
 };
 
+&simplefb_hdmi {
+	vcc-hdmi-supply = <&reg_dldo1>;
+};
+
+&hdmi {
+	hvcc-supply = <&reg_dldo1>;
+	status = "okay";
+};
+
+&hdmi_out {
+	hdmi_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
+	};
+};
+
 &sound {
 	status = "okay";
+	simple-audio-card,name = "PineTab";
 	simple-audio-card,aux-devs = <&codec_analog>, <&speaker_amp>;
 	simple-audio-card,widgets = "Microphone", "Internal Microphone Left",
 				    "Microphone", "Internal Microphone Right",
@@ -440,6 +480,20 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins>, <&uart1_rts_cts_pins>;
+	status = "okay";
+
+	bluetooth {
+		compatible = "realtek,rtl8723cs-bt";
+		reset-gpios = <&r_pio 0 4 GPIO_ACTIVE_LOW>; /* PL4 */
+		device-wake-gpios = <&r_pio 0 5 GPIO_ACTIVE_LOW>; /* PL5 */
+		host-wake-gpios = <&r_pio 0 6 GPIO_ACTIVE_HIGH>; /* PL6 */
+		firmware-postfix = "pinebook";
+	};
 };
 
 &usb_otg {
